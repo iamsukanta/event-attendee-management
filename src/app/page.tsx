@@ -6,6 +6,7 @@ import {
   Search, ArrowUpDown, ArrowUp, ArrowDown,
   Users, UserCheck, PenLine, Trash2, Loader2,
   CalendarDays, MapPin, Flower2, UsersRound, Euro,
+  Baby,
 } from 'lucide-react'
 import EditModal from '@/components/EditModal'
 import Pagination from '@/components/Pagination'
@@ -14,21 +15,15 @@ import { Attendee, SortField, SortOrder, AttendeeListResponse } from '@/types'
 const PAGE_SIZE = 10
 
 const SORT_LABELS: Record<string, string> = {
-  attendeeNo:    'No.',
-  name:          'Name',
-  email:         'Email',
-  code:          'Code',
-  amount:        'Amount',
-  paymentMethod: 'Payment',
-  quantity:      'Qty',
-  isPresent:     'Present',
-  createdAt:     'Registered',
-}
-
-const PAYMENT_BADGE: Record<string, string> = {
-  PayPal:         'bg-blue-100 text-blue-700',
-  'Bank Transfer':'bg-purple-100 text-purple-700',
-  Cash:           'bg-baisakh-green-light text-baisakh-green',
+  attendeeNo:          'No.',
+  participantsName:    'Name',
+  emailOrPhoneNo:      'Email/Phone',
+  code:                'Code',
+  amount:              'Amount',
+  transactionMode:     'Mode',
+  adultParticipants:   'Adults',
+  under15Participants: 'Under 15',
+  isPresent:           'Present',
 }
 
 function PresentSwitch({
@@ -82,14 +77,14 @@ function PresentSwitch({
 }
 
 export default function AttendeesPage() {
-  const [data,    setData]    = useState<AttendeeListResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [search,  setSearch]  = useState('')
-  const [sortBy,  setSortBy]  = useState<SortField>('attendeeNo')
-  const [order,   setOrder]   = useState<SortOrder>('asc')
-  const [page,    setPage]    = useState(1)
-  const [editing, setEditing] = useState<Attendee | null>(null)
-  const [deleting,setDeleting]= useState<number | null>(null)
+  const [data,     setData]     = useState<AttendeeListResponse | null>(null)
+  const [loading,  setLoading]  = useState(true)
+  const [search,   setSearch]   = useState('')
+  const [sortBy,   setSortBy]   = useState<SortField>('attendeeNo')
+  const [order,    setOrder]    = useState<SortOrder>('asc')
+  const [page,     setPage]     = useState(1)
+  const [editing,  setEditing]  = useState<Attendee | null>(null)
+  const [deleting, setDeleting] = useState<number | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -128,7 +123,6 @@ export default function AttendeesPage() {
       ? { ...d, attendees: d.attendees.map(a => a.id === updated.id ? updated : a) }
       : d
     )
-    // Refresh totals (totalPresent changes)
     fetchData()
   }
 
@@ -198,10 +192,10 @@ export default function AttendeesPage() {
             {/* Row 1 — headcounts */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Total Registered Attendee',      value: data.total,                icon: Users,      color: 'bg-baisakh-red-light text-baisakh-red'     },
-                { label: 'Present Registered Attendee',          value: data.totalPresent,         icon: UserCheck,  color: 'bg-baisakh-green-light text-baisakh-green'  },
-                { label: 'Total Participants',     value: data.totalQuantity,        icon: UsersRound, color: 'bg-blue-50 text-blue-600'                   },
-                { label: 'Present Participants',   value: data.totalPresentQuantity, icon: UsersRound, color: 'bg-baisakh-green-light text-baisakh-green'  },
+                { label: 'Total Registrations',       value: data.total,                    icon: Users,      color: 'bg-baisakh-red-light text-baisakh-red'    },
+                { label: 'Total Present',             value: data.totalPresent,             icon: UserCheck,  color: 'bg-baisakh-green-light text-baisakh-green' },
+                { label: 'Total Adult Participants',  value: data.totalAdultParticipants,   icon: UsersRound, color: 'bg-blue-50 text-blue-600'                  },
+                { label: 'Total Under 15 Participants', value: data.totalUnder15Participants, icon: Baby,     color: 'bg-amber-50 text-amber-600'                },
               ].map((s, i) => (
                 <div key={i} className={`${s.color} rounded-xl px-4 py-3 flex items-center gap-3`}>
                   <s.icon size={20} />
@@ -217,7 +211,7 @@ export default function AttendeesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 {
-                  label: 'Total Amount',
+                  label: 'Total Amount Collected',
                   sub:   'All registrations',
                   value: `€${data.totalAmount.toFixed(2)}`,
                   color: 'bg-baisakh-gold-light text-baisakh-gold',
@@ -229,16 +223,16 @@ export default function AttendeesPage() {
                   color: 'bg-baisakh-green-light text-baisakh-green',
                 },
                 {
-                  label: 'Non-Present Amount',
-                  sub:   'Total − present amount',
-                  value: `€${(data.totalAmount - data.totalPresentAmount).toFixed(2)}`,
-                  color: 'bg-gray-100 text-gray-600',
+                  label: 'On-Spot Registrations',
+                  sub:   `${data.totalOnSpotParticipants} participants`,
+                  value: String(data.totalOnSpotCount),
+                  color: 'bg-purple-50 text-purple-600',
                 },
                 {
-                  label: 'On-Spot Registered Amount',
-                  sub:   `${data.totalOnspotQuantity} on-spot participants`,
-                  value: `€${(data.totalOnspotQuantity * 5).toFixed(2)}`,
-                  color: 'bg-purple-50 text-purple-600',
+                  label: 'On-Spot Amount',
+                  sub:   `${data.totalOnSpotCount} registrations`,
+                  value: `€${data.totalOnSpotAmount.toFixed(2)}`,
+                  color: 'bg-pink-50 text-pink-600',
                 },
               ].map((s, i) => (
                 <div key={i} className={`${s.color} rounded-xl px-4 py-3 flex items-center gap-3`}>
@@ -260,7 +254,7 @@ export default function AttendeesPage() {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, email or code…"
+              placeholder="Search by name, email/phone, transaction ref or code…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="input-field pl-9"
@@ -310,15 +304,15 @@ export default function AttendeesPage() {
                   <tr className="bg-baisakh-red text-white">
                     {(
                       [
-                        ['attendeeNo',    'No.'],
-                        ['name',          'Name'],
-                        ['email',         'Email'],
-                        ['code',          'Code'],
-                        ['amount',        'Amount'],
-                        ['paymentMethod', 'Payment'],
-                        ['quantity',      'Qty'],
-                        ['isPresent',     'Present'],
-                        ['createdAt',     'Registered'],
+                        ['attendeeNo',          'No.'],
+                        ['code',                'Code'],
+                        ['participantsName',    'Participants'],
+                        ['emailOrPhoneNo',      'Email/Phone'],
+                        ['amount',              'Amount'],
+                        ['transactionMode',     'Mode'],
+                        ['adultParticipants',   'Adults'],
+                        ['under15Participants', 'U-15'],
+                        ['isPresent',           'Present'],
                       ] as [SortField, string][]
                     ).map(([field, label]) => (
                       <th
@@ -332,6 +326,7 @@ export default function AttendeesPage() {
                         </span>
                       </th>
                     ))}
+                    <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Reg. Date</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -341,29 +336,37 @@ export default function AttendeesPage() {
                       key={a.id}
                       className={`group transition-colors hover:bg-baisakh-red-light ${
                         i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                      }`}
+                      } ${a.isOnSpotRegistration ? 'border-l-2 border-purple-300' : ''}`}
                     >
                       <td className="px-4 py-3">
                         <span className="font-mono font-semibold text-baisakh-red">
                           #{a.attendeeNo}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{a.name}</td>
-                      <td className="px-4 py-3 text-gray-500 max-w-[180px] truncate">{a.email}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-mono bg-baisakh-gold-light text-baisakh-gold px-2 py-0.5 rounded-md text-xs font-bold tracking-widest">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="font-mono bg-baisakh-gold-light text-baisakh-gold px-2 py-0.5 rounded-md text-xs font-bold tracking-wide whitespace-nowrap">
                           {a.code}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold text-gray-700">€{a.amount.toFixed(2)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          PAYMENT_BADGE[a.paymentMethod] ?? 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {a.paymentMethod}
-                        </span>
+                      <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate" title={a.participantsName}>
+                        {a.participantsName}
                       </td>
-                      <td className="px-4 py-3 text-center font-medium text-gray-700">{a.quantity}</td>
+                      <td className="px-4 py-3 text-gray-500 max-w-[160px] truncate" title={a.emailOrPhoneNo}>
+                        {a.emailOrPhoneNo}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-gray-700">
+                        {a.amount > 0 ? `€${a.amount.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {a.transactionMode
+                          ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              {a.transactionMode}
+                            </span>
+                          : <span className="text-gray-300">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-center font-medium text-gray-700">{a.adultParticipants}</td>
+                      <td className="px-4 py-3 text-center font-medium text-gray-700">{a.under15Participants}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <PresentSwitch
@@ -377,9 +380,7 @@ export default function AttendeesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                        {new Date(a.createdAt).toLocaleDateString('en-GB', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
+                        {a.registrationDate || '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
@@ -424,7 +425,6 @@ export default function AttendeesPage() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="flex max-w-7xl mx-auto px-5 justify-between text-center py-6 text-xs text-gray-400">
         শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন কমিউনিটি, বার্লিন, জার্মানি
         <small>

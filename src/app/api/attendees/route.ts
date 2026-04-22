@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+async function generateAttendeeNo(): Promise<number> {
+  const max = await prisma.attendee.aggregate({ _max: { attendeeNo: true } })
+  return (max._max.attendeeNo ?? 0) + 1
+}
+
 async function generateUniqueCode(): Promise<string> {
   let code: string
   let exists = true
@@ -10,11 +15,6 @@ async function generateUniqueCode(): Promise<string> {
     exists = !!existing
   }
   return code!
-}
-
-async function generateAttendeeNo(): Promise<number> {
-  const max = await prisma.attendee.aggregate({ _max: { attendeeNo: true } })
-  return (max._max.attendeeNo ?? 0) + 1
 }
 
 export async function GET(req: NextRequest) {
@@ -29,24 +29,31 @@ export async function GET(req: NextRequest) {
     const where = search
       ? {
           OR: [
-            { name:  { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { code:  { contains: search, mode: 'insensitive' as const } },
+            { participantsName:            { contains: search, mode: 'insensitive' as const } },
+            { transactionNoTransfereeName: { contains: search, mode: 'insensitive' as const } },
+            { emailOrPhoneNo:              { contains: search, mode: 'insensitive' as const } },
+            { code:                        { contains: search, mode: 'insensitive' as const } },
           ],
         }
       : {}
 
-    const allowedSort = ['name','email','attendeeNo','code','amount','paymentMethod','quantity','isPresent','createdAt']
+    const allowedSort = [
+      'attendeeNo', 'participantsName', 'emailOrPhoneNo', 'code',
+      'amount', 'transactionMode', 'adultParticipants', 'under15Participants',
+      'isPresent', 'createdAt',
+    ]
     const safeSort = allowedSort.includes(sortBy) ? sortBy : 'attendeeNo'
 
     const [
       attendees, total,
       totalPresent,
-      totalQtyResult,
-      totalPresentQtyResult,
-      totalOnspotQtyResult,
+      totalOnSpotCount,
+      totalParticipantsResult,
+      totalPresentParticipantsResult,
+      totalOnSpotParticipantsResult,
       totalAmountResult,
       totalPresentAmountResult,
+      totalOnSpotAmountResult,
     ] = await Promise.all([
       prisma.attendee.findMany({
         where,
@@ -56,14 +63,22 @@ export async function GET(req: NextRequest) {
       }),
       prisma.attendee.count({ where }),
       prisma.attendee.count({ where: { isPresent: true } }),
-      prisma.attendee.aggregate({ _sum: { quantity: true } }),
-      prisma.attendee.aggregate({ where: { isPresent: true }, _sum: { quantity: true } }),
-      prisma.attendee.aggregate({ where: { isOnspot: true }, _sum: { quantity: true } }),
+      prisma.attendee.count({ where: { isOnSpotRegistration: true } }),
+      prisma.attendee.aggregate({
+        _sum: { adultParticipants: true, under15Participants: true },
+      }),
+      prisma.attendee.aggregate({
+        where: { isPresent: true },
+        _sum: { adultParticipants: true, under15Participants: true },
+      }),
+      prisma.attendee.aggregate({
+        where: { isOnSpotRegistration: true },
+        _sum: { adultParticipants: true, under15Participants: true },
+      }),
       prisma.attendee.aggregate({ _sum: { amount: true } }),
       prisma.attendee.aggregate({ where: { isPresent: true }, _sum: { amount: true } }),
+      prisma.attendee.aggregate({ where: { isOnSpotRegistration: true }, _sum: { amount: true } }),
     ])
-
-    const totalQuantity = totalQtyResult._sum.quantity ?? 0
 
     return NextResponse.json({
       attendees,
@@ -72,11 +87,18 @@ export async function GET(req: NextRequest) {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
       totalPresent,
-      totalQuantity,
-      totalPresentQuantity: totalPresentQtyResult._sum.quantity ?? 0,
-      totalOnspotQuantity:  totalOnspotQtyResult._sum.quantity ?? 0,
-      totalAmount: totalAmountResult._sum.amount ?? 0,
+      totalUnder15Participants: totalParticipantsResult._sum.under15Participants ?? 0,
+      totalAdultParticipants:   totalParticipantsResult._sum.adultParticipants ?? 0,
+      totalPresentParticipants:
+        (totalPresentParticipantsResult._sum.adultParticipants ?? 0) +
+        (totalPresentParticipantsResult._sum.under15Participants ?? 0),
+      totalOnSpotCount,
+      totalOnSpotParticipants:
+        (totalOnSpotParticipantsResult._sum.adultParticipants ?? 0) +
+        (totalOnSpotParticipantsResult._sum.under15Participants ?? 0),
+      totalAmount:        totalAmountResult._sum.amount ?? 0,
       totalPresentAmount: totalPresentAmountResult._sum.amount ?? 0,
+      totalOnSpotAmount:  totalOnSpotAmountResult._sum.amount ?? 0,
     })
   } catch (err) {
     console.error(err)
@@ -87,34 +109,47 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, email, amount, paymentMethod, quantity, comment, isOnspot } = body
+    const {
+      participantsName,
+      emailOrPhoneNo,
+      under15Participants,
+      adultParticipants,
+      transactionNoTransfereeName,
+      transactionMode,
+      amount,
+      isOnSpotRegistration,
+    } = body
 
-    if (!name?.trim() || !email?.trim() || !paymentMethod) {
-      return NextResponse.json({ error: 'Name, email, and payment method are required' }, { status: 400 })
+    if (!participantsName?.trim()) {
+      return NextResponse.json({ error: 'Participants name is required' }, { status: 400 })
     }
 
-    const existing = await prisma.attendee.findUnique({ where: { email: email.trim() } })
-    if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
-    }
-
-    const [code, attendeeNo] = await Promise.all([
-      generateUniqueCode(),
+    const [attendeeNo, code] = await Promise.all([
       generateAttendeeNo(),
+      generateUniqueCode(),
     ])
+
+    const onSpot = Boolean(isOnSpotRegistration)
+    const now = new Date()
+    const registrationDate = now.toLocaleString('en-GB', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    })
 
     const attendee = await prisma.attendee.create({
       data: {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        amount: parseFloat(amount) || 0,
-        paymentMethod,
-        quantity: Math.max(1, parseInt(quantity) || 1),
-        comment: comment?.trim() || null,
-        isOnspot: Boolean(isOnspot),
+        participantsName:            participantsName.trim(),
+        emailOrPhoneNo:              (emailOrPhoneNo ?? '').trim(),
+        under15Participants:         Math.max(0, parseInt(String(under15Participants), 10) || 0),
+        adultParticipants:           Math.max(0, parseInt(String(adultParticipants), 10) || 0),
+        transactionNoTransfereeName: (transactionNoTransfereeName ?? '').trim(),
+        transactionMode:             transactionMode ?? '',
+        amount:                      parseFloat(String(amount)) || 0,
+        isOnSpotRegistration:        onSpot,
+        isPresent:                   onSpot,
+        registrationDate,
         code,
         attendeeNo,
-        isPresent: Boolean(isOnspot),
       },
     })
 

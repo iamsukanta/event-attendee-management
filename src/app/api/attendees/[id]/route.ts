@@ -11,18 +11,15 @@ export async function PUT(
     if (isNaN(numId)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
 
     const body = await req.json()
-    const { name, email, attendeeNo, code, amount, paymentMethod, quantity, comment, isOnspot, isPresent } = body
+    const {
+      participantsName, emailOrPhoneNo, attendeeNo, code,
+      under15Participants, adultParticipants,
+      transactionNoTransfereeName, transactionMode,
+      amount, registrationDate,
+      isOnSpotRegistration, isPresent,
+    } = body
 
-    if (email) {
-      const conflict = await prisma.attendee.findFirst({
-        where: { email: email.trim().toLowerCase(), NOT: { id: numId } },
-      })
-      if (conflict) {
-        return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
-      }
-    }
-
-    if (code) {
+    if (code !== undefined) {
       const codeConflict = await prisma.attendee.findFirst({
         where: { code: String(code), NOT: { id: numId } },
       })
@@ -34,16 +31,18 @@ export async function PUT(
     const updated = await prisma.attendee.update({
       where: { id: numId },
       data: {
-        ...(name          !== undefined && { name: String(name).trim() }),
-        ...(email         !== undefined && { email: String(email).trim().toLowerCase() }),
-        ...(attendeeNo    !== undefined && { attendeeNo: parseInt(String(attendeeNo), 10) }),
-        ...(code          !== undefined && { code: String(code) }),
-        ...(amount        !== undefined && { amount: parseFloat(String(amount)) }),
-        ...(paymentMethod !== undefined && { paymentMethod: String(paymentMethod) }),
-        ...(quantity      !== undefined && { quantity: Math.max(1, parseInt(String(quantity), 10)) }),
-        ...(comment       !== undefined && { comment: comment ? String(comment).trim() || null : null }),
-        ...(isOnspot      !== undefined && { isOnspot: Boolean(isOnspot) }),
-        ...(isPresent     !== undefined && { isPresent: Boolean(isPresent) }),
+        ...(participantsName            !== undefined && { participantsName: String(participantsName).trim() }),
+        ...(emailOrPhoneNo              !== undefined && { emailOrPhoneNo: String(emailOrPhoneNo).trim() }),
+        ...(attendeeNo                  !== undefined && { attendeeNo: parseInt(String(attendeeNo), 10) }),
+        ...(code                        !== undefined && { code: String(code) }),
+        ...(under15Participants         !== undefined && { under15Participants: Math.max(0, parseInt(String(under15Participants), 10) || 0) }),
+        ...(adultParticipants           !== undefined && { adultParticipants: Math.max(0, parseInt(String(adultParticipants), 10) || 0) }),
+        ...(transactionNoTransfereeName !== undefined && { transactionNoTransfereeName: String(transactionNoTransfereeName).trim() }),
+        ...(transactionMode             !== undefined && { transactionMode: String(transactionMode) }),
+        ...(amount                      !== undefined && { amount: parseFloat(String(amount)) || 0 }),
+        ...(registrationDate            !== undefined && { registrationDate: String(registrationDate) }),
+        ...(isOnSpotRegistration        !== undefined && { isOnSpotRegistration: Boolean(isOnSpotRegistration) }),
+        ...(isPresent                   !== undefined && { isPresent: Boolean(isPresent) }),
       },
     })
 

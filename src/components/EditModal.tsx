@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Save, Loader2 } from 'lucide-react'
-import { Attendee, PAYMENT_METHODS } from '@/types'
+import { Attendee } from '@/types'
 
 interface EditModalProps {
   attendee: Attendee
@@ -12,14 +12,17 @@ interface EditModalProps {
 
 export default function EditModal({ attendee, onClose, onSaved }: EditModalProps) {
   const [form, setForm] = useState({
-    name:          attendee.name,
-    email:         attendee.email,
-    code:          attendee.code,
-    amount:        String(attendee.amount),
-    paymentMethod: attendee.paymentMethod,
-    quantity:      String(attendee.quantity),
-    comment:       attendee.comment ?? '',
-    isPresent:     attendee.isPresent,
+    participantsName:            attendee.participantsName,
+    emailOrPhoneNo:              attendee.emailOrPhoneNo,
+    code:                        attendee.code,
+    registrationDate:            attendee.registrationDate,
+    under15Participants:         String(attendee.under15Participants),
+    adultParticipants:           String(attendee.adultParticipants),
+    transactionNoTransfereeName: attendee.transactionNoTransfereeName,
+    transactionMode:             attendee.transactionMode,
+    amount:                      String(attendee.amount),
+    isPresent:                   attendee.isPresent,
+    isOnSpotRegistration:        attendee.isOnSpotRegistration,
   })
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
@@ -31,12 +34,12 @@ export default function EditModal({ attendee, onClose, onSaved }: EditModalProps
   }, [onClose])
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.email.trim()) {
-      setError('Name and email are required.')
+    if (!form.participantsName.trim()) {
+      setError('Participants name is required.')
       return
     }
-    if (!/^\d{4}$/.test(form.code)) {
-      setError('Code must be exactly 4 digits.')
+    if (!form.code.trim()) {
+      setError('Code is required.')
       return
     }
     setSaving(true)
@@ -47,9 +50,9 @@ export default function EditModal({ attendee, onClose, onSaved }: EditModalProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          amount:   parseFloat(form.amount) || 0,
-          quantity: Math.max(1, parseInt(form.quantity, 10) || 1),
-          comment:  form.comment.trim() || null,
+          amount:              parseFloat(form.amount) || 0,
+          under15Participants: parseInt(form.under15Participants, 10) || 0,
+          adultParticipants:   parseInt(form.adultParticipants, 10) || 0,
         }),
       })
       const data = await res.json()
@@ -62,7 +65,7 @@ export default function EditModal({ attendee, onClose, onSaved }: EditModalProps
     }
   }
 
-  const field = (
+  const textField = (
     label: string,
     key: keyof typeof form,
     type: string = 'text',
@@ -80,17 +83,36 @@ export default function EditModal({ attendee, onClose, onSaved }: EditModalProps
     </div>
   )
 
+  const toggle = (label: string, key: 'isPresent' | 'isOnSpotRegistration', color: string) => (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={form[key]}
+        onClick={() => setForm(f => ({ ...f, [key]: !f[key] }))}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          form[key] ? color : 'bg-gray-300'
+        }`}
+      >
+        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          form[key] ? 'translate-x-6' : 'translate-x-1'
+        }`} />
+      </button>
+      <span className="text-sm font-medium text-gray-700">{label}: {form[key] ? 'Yes' : 'No'}</span>
+    </div>
+  )
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Header */}
         <div className="bg-baisakh-red px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-bold text-lg">Edit Attendee</h2>
-            <p className="text-red-200 text-xs mt-0.5">#{attendee.attendeeNo} — {attendee.name}</p>
+            <p className="text-red-200 text-xs mt-0.5">#{attendee.attendeeNo} — {attendee.participantsName}</p>
           </div>
           <button onClick={onClose} className="text-white hover:text-red-200 transition-colors">
             <X size={20} />
@@ -105,56 +127,25 @@ export default function EditModal({ attendee, onClose, onSaved }: EditModalProps
             </div>
           )}
 
-          {field('Full Name', 'name')}
-          {field('Email Address', 'email', 'email')}
-
-          {field('4-Digit Code', 'code', 'text', { maxLength: 4, pattern: '\\d{4}', placeholder: '0000' })}
+          {textField('Participants Name', 'participantsName')}
+          {textField('Email / Phone No.', 'emailOrPhoneNo')}
+          {textField('Transaction No. / Transferee Name', 'transactionNoTransfereeName')}
+          {textField('Transaction Mode', 'transactionMode', 'text', { placeholder: 'e.g. Cash, PayPal, Bank Transfer…' })}
 
           <div className="grid grid-cols-3 gap-3">
-            {field('Amount (€)', 'amount', 'number', { min: 0, step: '0.01' })}
-            {field('Participants', 'quantity', 'number', { min: 1, max: 20 })}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-              <select
-                value={form.paymentMethod}
-                onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-baisakh-red"
-              >
-                {PAYMENT_METHODS.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
+            {textField('Amount (€)', 'amount', 'number', { min: 0, step: '0.01' })}
+            {textField('Adults', 'adultParticipants', 'number', { min: 0, max: 30 })}
+            {textField('Under 15', 'under15Participants', 'number', { min: 0, max: 30 })}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Comment / Notes</label>
-            <textarea
-              rows={3}
-              placeholder="Special instructions or notes…"
-              value={form.comment}
-              onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-baisakh-red focus:border-transparent resize-none"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            {textField('Code', 'code')}
+            {textField('Registration Date', 'registrationDate')}
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.isPresent}
-              onClick={() => setForm(f => ({ ...f, isPresent: !f.isPresent }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                form.isPresent ? 'bg-baisakh-green' : 'bg-gray-300'
-              }`}
-            >
-              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                form.isPresent ? 'translate-x-6' : 'translate-x-1'
-              }`} />
-            </button>
-            <span className="text-sm font-medium text-gray-700">
-              {form.isPresent ? 'Present' : 'Absent'}
-            </span>
+          <div className="flex flex-col gap-3 pt-1">
+            {toggle('Present', 'isPresent', 'bg-baisakh-green')}
+            {toggle('On-Spot Registration', 'isOnSpotRegistration', 'bg-purple-500')}
           </div>
         </div>
 

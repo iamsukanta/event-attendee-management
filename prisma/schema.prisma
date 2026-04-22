@@ -8,17 +8,19 @@ datasource db {
 }
 
 model Attendee {
-  id            Int      @id @default(autoincrement())
-  name          String
-  email         String   @unique
-  attendeeNo    Int      @unique
-  code          String   @unique
-  amount        Float    @default(0)
-  paymentMethod String
-  quantity      Int      @default(1)
-  isPresent     Boolean  @default(false)
-  isOnspot      Boolean  @default(false)
-  comment       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                          Int      @id @default(autoincrement())
+  attendeeNo                  Int      @unique
+  code                        String   @unique
+  registrationDate            String   @default("")
+  participantsName            String
+  under15Participants         Int      @default(0)
+  adultParticipants           Int      @default(0)
+  transactionNoTransfereeName String   @default("")
+  emailOrPhoneNo              String   @default("")
+  transactionMode             String   @default("")
+  amount                      Float    @default(0)
+  isPresent                   Boolean  @default(false)
+  isOnSpotRegistration        Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 }

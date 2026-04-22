@@ -1,27 +1,30 @@
 export interface Attendee {
   id: number
-  name: string
-  email: string
   attendeeNo: number
   code: string
+  registrationDate: string
+  participantsName: string
+  under15Participants: number
+  adultParticipants: number
+  transactionNoTransfereeName: string
+  emailOrPhoneNo: string
+  transactionMode: string
   amount: number
-  paymentMethod: string
-  quantity: number
   isPresent: boolean
-  isOnspot: boolean
-  comment: string | null
+  isOnSpotRegistration: boolean
   createdAt: string
   updatedAt: string
 }
 
 export type SortField =
-  | 'name'
-  | 'email'
   | 'attendeeNo'
+  | 'participantsName'
+  | 'emailOrPhoneNo'
   | 'code'
   | 'amount'
-  | 'paymentMethod'
-  | 'quantity'
+  | 'transactionMode'
+  | 'adultParticipants'
+  | 'under15Participants'
   | 'isPresent'
   | 'createdAt'
 
@@ -34,12 +37,15 @@ export interface AttendeeListResponse {
   pageSize: number
   totalPages: number
   totalPresent: number
-  totalQuantity: number
-  totalPresentQuantity: number
-  totalOnspotQuantity: number
+  totalUnder15Participants: number
+  totalAdultParticipants: number
+  totalPresentParticipants: number
+  totalOnSpotCount: number
+  totalOnSpotParticipants: number
+  totalOnSpotAmount: number
   totalAmount: number
   totalPresentAmount: number
 }
 
-export const PAYMENT_METHODS = ['PayPal', 'Bank Transfer', 'Cash'] as const
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+export const ON_SPOT_TRANSACTION_MODES = ['Cash', 'PayPal', 'Bank Transfer', 'Other'] as const
+export type OnSpotTransactionMode = (typeof ON_SPOT_TRANSACTION_MODES)[number]

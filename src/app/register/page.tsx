@@ -4,42 +4,46 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   Flower2, CalendarDays, MapPin,
-  CreditCard, Building2, Banknote,
+  CreditCard, Building2, Banknote, HelpCircle,
   CheckCircle2, Loader2, ArrowLeft, Users,
 } from 'lucide-react'
-import { PAYMENT_METHODS, PaymentMethod } from '@/types'
+import { ON_SPOT_TRANSACTION_MODES, OnSpotTransactionMode } from '@/types'
 
-const PAYMENT_ICONS: Record<PaymentMethod, React.ReactNode> = {
+const TRANSACTION_ICONS: Record<OnSpotTransactionMode, React.ReactNode> = {
+  'Cash':          <Banknote     size={18} />,
   'PayPal':        <CreditCard   size={18} />,
   'Bank Transfer': <Building2    size={18} />,
-  'Cash':          <Banknote     size={18} />,
+  'Other':         <HelpCircle   size={18} />,
 }
 
-const PAYMENT_STYLES: Record<PaymentMethod, string> = {
+const TRANSACTION_STYLES: Record<OnSpotTransactionMode, string> = {
+  'Cash':          'border-green-300  bg-green-50  text-green-700  ring-green-400',
   'PayPal':        'border-blue-300   bg-blue-50   text-blue-700   ring-blue-400',
   'Bank Transfer': 'border-purple-300 bg-purple-50 text-purple-700 ring-purple-400',
-  'Cash':          'border-green-300  bg-green-50  text-green-700  ring-green-400',
+  'Other':         'border-gray-300   bg-gray-50   text-gray-700   ring-gray-400',
 }
 
 interface SuccessData {
-  name:          string
-  attendeeNo:    number
-  code:          string
-  email:         string
-  paymentMethod: string
-  amount:        number
-  quantity:      number
-  isPresent:     boolean
+  participantsName:    string
+  attendeeNo:          number
+  code:                string
+  emailOrPhoneNo:      string
+  transactionMode:     string
+  amount:              number
+  adultParticipants:   number
+  under15Participants: number
+  isPresent:           boolean
 }
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    name:          '',
-    email:         '',
-    amount:        '',
-    quantity:      '1',
-    comment:       '',
-    paymentMethod: '' as PaymentMethod | '',
+    participantsName:            '',
+    emailOrPhoneNo:              '',
+    transactionNoTransfereeName: '',
+    adultParticipants:           '1',
+    under15Participants:         '0',
+    amount:                      '',
+    transactionMode:             '' as OnSpotTransactionMode | '',
   })
   const [loading, setLoading]   = useState(false)
   const [error,   setError]     = useState('')
@@ -47,9 +51,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim())  { setError('Name is required.');               return }
-    if (!form.email.trim()) { setError('Email is required.');              return }
-    if (!form.paymentMethod){ setError('Please select a payment method.'); return }
+    if (!form.participantsName.trim()) { setError('Participants name is required.'); return }
+    const adults = parseInt(form.adultParticipants, 10) || 0
+    const under15 = parseInt(form.under15Participants, 10) || 0
+    if (adults + under15 < 1) { setError('At least 1 participant is required.'); return }
 
     setLoading(true)
     setError('')
@@ -58,28 +63,38 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:          form.name.trim(),
-          email:         form.email.trim(),
-          amount:        parseFloat(form.amount) || 0,
-          quantity:      parseInt(form.quantity) || 1,
-          comment:       form.comment.trim() || null,
-          isOnspot:      true,
-          paymentMethod: form.paymentMethod,
+          participantsName:            form.participantsName.trim(),
+          emailOrPhoneNo:              form.emailOrPhoneNo.trim(),
+          transactionNoTransfereeName: form.transactionNoTransfereeName.trim(),
+          adultParticipants:           adults,
+          under15Participants:         under15,
+          amount:                      parseFloat(form.amount) || 0,
+          transactionMode:             form.transactionMode,
+          isOnSpotRegistration:        true,
         }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Registration failed.'); return }
       setSuccess({
-        name:          data.name,
-        attendeeNo:    data.attendeeNo,
-        code:          data.code,
-        email:         data.email,
-        paymentMethod: data.paymentMethod,
-        amount:        data.amount,
-        quantity:      data.quantity,
-        isPresent:     data.isPresent,
+        participantsName:    data.participantsName,
+        attendeeNo:          data.attendeeNo,
+        code:                data.code,
+        emailOrPhoneNo:      data.emailOrPhoneNo,
+        transactionMode:     data.transactionMode,
+        amount:              data.amount,
+        adultParticipants:   data.adultParticipants,
+        under15Participants: data.under15Participants,
+        isPresent:           data.isPresent,
       })
-      setForm({ name: '', email: '', amount: '', quantity: '1', comment: '', paymentMethod: '' })
+      setForm({
+        participantsName:            '',
+        emailOrPhoneNo:              '',
+        transactionNoTransfereeName: '',
+        adultParticipants:           '1',
+        under15Participants:         '0',
+        amount:                      '',
+        transactionMode:             '',
+      })
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -101,7 +116,7 @@ export default function RegisterPage() {
             </div>
             <div className="text-center sm:text-left flex-1">
               <h1 className="text-white font-bold text-2xl sm:text-3xl tracking-wide">
-                পহেলা বৈশাখ ১৪৩২
+                পহেলা বৈশাখ ১৪৩৩
               </h1>
               <p className="text-red-200 text-sm mt-0.5 font-medium tracking-widest uppercase">
                 Pohela Baisakh Celebration
@@ -112,7 +127,7 @@ export default function RegisterPage() {
                 <CalendarDays size={14} /><span>April 25, 2025</span>
               </div>
               <div className="flex items-center gap-1.5 text-red-200 text-sm justify-end mt-0.5">
-                <MapPin size={14} /><span>Udjapon Community, Berlin</span>
+                <MapPin size={14} /><span>উদযাপন কমিউনিটি, বার্লিন</span>
               </div>
             </div>
           </div>
@@ -145,7 +160,7 @@ export default function RegisterPage() {
               <CheckCircle2 size={24} className="text-white" />
               <div>
                 <h3 className="text-white font-bold text-lg">Registration Successful!</h3>
-                <p className="text-green-200 text-sm">Attendee has been registered.</p>
+                <p className="text-green-200 text-sm">Attendee has been registered and marked present.</p>
               </div>
             </div>
             <div className="px-6 py-5 space-y-3">
@@ -156,29 +171,34 @@ export default function RegisterPage() {
                 </div>
                 <div className="bg-baisakh-gold-light rounded-xl p-4 text-center">
                   <p className="text-xs text-amber-600 font-medium uppercase tracking-wider mb-1">Entry Code</p>
-                  <p className="text-3xl font-bold text-baisakh-gold font-mono tracking-widest">{success.code}</p>
+                  <p className="text-2xl font-bold text-baisakh-gold font-mono tracking-widest">{success.code}</p>
                 </div>
               </div>
 
-              {/* Attendee details */}
               <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-                <p className="font-semibold text-gray-800 text-base">{success.name}</p>
-                <p className="text-gray-500">{success.email}</p>
-                <div className="grid grid-cols-3 gap-3 pt-1">
+                <p className="font-semibold text-gray-800 text-base">{success.participantsName}</p>
+                {success.emailOrPhoneNo && <p className="text-gray-500">{success.emailOrPhoneNo}</p>}
+                <div className="grid grid-cols-4 gap-3 pt-1">
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide">Amount</p>
                     <p className="font-semibold text-gray-700">€{success.amount.toFixed(2)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Participants</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Adults</p>
                     <p className="font-semibold text-gray-700 flex items-center gap-1">
-                      <Users size={13} className="text-gray-400" />{success.quantity}
+                      <Users size={13} className="text-gray-400" />{success.adultParticipants}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Under 15</p>
+                    <p className="font-semibold text-gray-700 flex items-center gap-1">
+                      <Users size={13} className="text-gray-400" />{success.under15Participants}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide">Status</p>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-baisakh-green-light text-baisakh-green">
+                      <span className="w-1.5 h-1.5 rounded-full bg-baisakh-green" />
                       Present
                     </span>
                   </div>
@@ -210,7 +230,7 @@ export default function RegisterPage() {
               On-Spot Registration
             </h2>
             <p className="text-gray-500 text-sm mt-1">
-              Fill in the details below. Entry code &amp; attendee number will be generated automatically.
+              Entry code &amp; attendee number are generated automatically.
             </p>
           </div>
 
@@ -221,38 +241,79 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Name */}
+            {/* Participants Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Full Name <span className="text-baisakh-red">*</span>
+                Participants Name <span className="text-baisakh-red">*</span>
               </label>
               <input
                 type="text"
-                placeholder="e.g. Rahim Ahmed"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Rahim / Ayesha / Zara"
+                value={form.participantsName}
+                onChange={e => setForm(f => ({ ...f, participantsName: e.target.value }))}
                 className="input-field"
                 required
               />
             </div>
 
-            {/* Email */}
+            {/* Email / Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email Address <span className="text-baisakh-red">*</span>
+                Email / Phone No.
               </label>
               <input
-                type="email"
-                placeholder="e.g. rahim@email.com"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                type="text"
+                placeholder="e.g. rahim@email.com or +49 176 1234567"
+                value={form.emailOrPhoneNo}
+                onChange={e => setForm(f => ({ ...f, emailOrPhoneNo: e.target.value }))}
                 className="input-field"
-                required
               />
             </div>
 
-            {/* Amount + Quantity */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Transaction No / Transferee Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Transaction No. / Transferee Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Rahim Ahmed or PayPal transaction ID"
+                value={form.transactionNoTransfereeName}
+                onChange={e => setForm(f => ({ ...f, transactionNoTransfereeName: e.target.value }))}
+                className="input-field"
+              />
+            </div>
+
+            {/* Participants count + Amount */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Adults <span className="text-baisakh-red">*</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="1"
+                  min={0}
+                  max={30}
+                  value={form.adultParticipants}
+                  onChange={e => setForm(f => ({ ...f, adultParticipants: e.target.value }))}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Under 15
+                </label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  min={0}
+                  max={30}
+                  value={form.under15Participants}
+                  onChange={e => setForm(f => ({ ...f, under15Participants: e.target.value }))}
+                  className="input-field"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Amount (€)
@@ -267,58 +328,29 @@ export default function RegisterPage() {
                   className="input-field"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  No. of Participants <span className="text-baisakh-red">*</span>
-                </label>
-                <input
-                  type="number"
-                  placeholder="1"
-                  min={1}
-                  max={20}
-                  value={form.quantity}
-                  onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
-                  className="input-field"
-                  required
-                />
-              </div>
             </div>
 
-            {/* Comment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Comment / Notes
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Special instructions or notes (optional)…"
-                value={form.comment}
-                onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-                className="input-field resize-none"
-              />
-            </div>
-
-            {/* Payment Method */}
+            {/* Transaction Mode */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Method <span className="text-baisakh-red">*</span>
+                Transaction Mode
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {PAYMENT_METHODS.map(method => {
-                  const active = form.paymentMethod === method
+              <div className="grid grid-cols-4 gap-3">
+                {ON_SPOT_TRANSACTION_MODES.map(mode => {
+                  const active = form.transactionMode === mode
                   return (
                     <button
-                      key={method}
+                      key={mode}
                       type="button"
-                      onClick={() => setForm(f => ({ ...f, paymentMethod: method }))}
+                      onClick={() => setForm(f => ({ ...f, transactionMode: mode }))}
                       className={`flex flex-col items-center gap-2 px-3 py-4 rounded-xl border-2 transition-all font-medium text-sm ${
                         active
-                          ? `${PAYMENT_STYLES[method]} ring-2 ring-offset-1 shadow-sm`
+                          ? `${TRANSACTION_STYLES[mode]} ring-2 ring-offset-1 shadow-sm`
                           : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:bg-white'
                       }`}
                     >
-                      {PAYMENT_ICONS[method]}
-                      <span className="text-xs text-center leading-tight">{method}</span>
+                      {TRANSACTION_ICONS[mode]}
+                      <span className="text-xs text-center leading-tight">{mode}</span>
                     </button>
                   )
                 })}
@@ -338,7 +370,6 @@ export default function RegisterPage() {
           </form>
         </div>
 
-        {/* Back link */}
         <div className="text-center mt-6">
           <Link href="/" className="text-sm text-gray-400 hover:text-baisakh-red transition-colors flex items-center justify-center gap-1">
             <ArrowLeft size={14} /> Back to Attendees List
@@ -347,7 +378,7 @@ export default function RegisterPage() {
       </main>
 
       <footer className="text-center py-6 text-xs text-gray-400">
-        শুভ নববর্ষ ১৪৩২ &nbsp;•&nbsp; Udjapon Community, Berlin
+        শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন কমিউনিটি, বার্লিন, জার্মানি
       </footer>
     </div>
   )
