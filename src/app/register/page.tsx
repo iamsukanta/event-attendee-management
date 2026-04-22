@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Flower2, CalendarDays, MapPin,
   CreditCard, Building2, Banknote, HelpCircle,
-  CheckCircle2, Loader2, ArrowLeft, Users,
+  CheckCircle2, Loader2, ArrowLeft, Users, LogOut,
 } from 'lucide-react'
 import { ON_SPOT_TRANSACTION_MODES, OnSpotTransactionMode } from '@/types'
 
@@ -36,6 +37,7 @@ interface SuccessData {
 }
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [form, setForm] = useState({
     participantsName:            '',
     emailOrPhoneNo:              '',
@@ -122,13 +124,24 @@ export default function RegisterPage() {
                 Pohela Baisakh Celebration
               </p>
             </div>
-            <div className="text-right hidden sm:block">
-              <div className="flex items-center gap-1.5 text-red-200 text-sm justify-end">
+            <div className="text-right hidden sm:flex flex-col items-end gap-2">
+              <div className="flex items-center gap-1.5 text-red-200 text-sm">
                 <CalendarDays size={14} /><span>April 25, 2025</span>
               </div>
-              <div className="flex items-center gap-1.5 text-red-200 text-sm justify-end mt-0.5">
-                <MapPin size={14} /><span>উদযাপন কমিউনিটি, বার্লিন</span>
+              <div className="flex items-center gap-1.5 text-red-200 text-sm">
+                <MapPin size={14} /><span>উদযাপন, বার্লিন</span>
               </div>
+              <button
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  router.replace('/login')
+                }}
+                title="Sign out"
+                className="flex items-center gap-1.5 text-red-300 hover:text-white text-xs transition-colors mt-1"
+              >
+                <LogOut size={13} />
+                Sign out
+              </button>
             </div>
           </div>
         </div>
@@ -378,7 +391,7 @@ export default function RegisterPage() {
       </main>
 
       <footer className="text-center py-6 text-xs text-gray-400">
-        শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন কমিউনিটি, বার্লিন, জার্মানি
+        শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন, বার্লিন, জার্মানি
       </footer>
     </div>
   )

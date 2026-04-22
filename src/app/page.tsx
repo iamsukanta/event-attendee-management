@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Search, ArrowUpDown, ArrowUp, ArrowDown,
   Users, UserCheck, PenLine, Trash2, Loader2,
   CalendarDays, MapPin, Flower2, UsersRound, Euro,
-  Baby,
+  Baby, LogOut,
 } from 'lucide-react'
 import EditModal from '@/components/EditModal'
 import Pagination from '@/components/Pagination'
@@ -77,6 +78,7 @@ function PresentSwitch({
 }
 
 export default function AttendeesPage() {
+  const router = useRouter()
   const [data,     setData]     = useState<AttendeeListResponse | null>(null)
   const [loading,  setLoading]  = useState(true)
   const [search,   setSearch]   = useState('')
@@ -126,6 +128,11 @@ export default function AttendeesPage() {
     fetchData()
   }
 
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.replace('/login')
+  }
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortBy !== field) return <ArrowUpDown size={13} className="opacity-40" />
     return order === 'asc'
@@ -153,15 +160,23 @@ export default function AttendeesPage() {
                 Pohela Baisakh Celebration
               </p>
             </div>
-            <div className="text-right hidden sm:block">
-              <div className="flex items-center gap-1.5 text-red-200 text-sm justify-end">
+            <div className="text-right hidden sm:flex flex-col items-end gap-2">
+              <div className="flex items-center gap-1.5 text-red-200 text-sm">
                 <CalendarDays size={14} />
                 <span>April 25, 2025</span>
               </div>
-              <div className="flex items-center gap-1.5 text-red-200 text-sm justify-end mt-0.5">
+              <div className="flex items-center gap-1.5 text-red-200 text-sm">
                 <MapPin size={14} />
-                <span>উদযাপন কমিউনিটি, বার্লিন, জার্মানি</span>
+                <span>উদযাপন, বার্লিন, জার্মানি</span>
               </div>
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                className="flex items-center gap-1.5 text-red-300 hover:text-white text-xs transition-colors mt-1"
+              >
+                <LogOut size={13} />
+                Sign out
+              </button>
             </div>
           </div>
         </div>
@@ -426,7 +441,7 @@ export default function AttendeesPage() {
       </main>
 
       <footer className="flex max-w-7xl mx-auto px-5 justify-between text-center py-6 text-xs text-gray-400">
-        শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন কমিউনিটি, বার্লিন, জার্মানি
+        শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন, বার্লিন, জার্মানি
         <small>
           Developed by <a href='https://iamsukanta.com' target='_blank'>iamsukanta.com</a>
         </small>

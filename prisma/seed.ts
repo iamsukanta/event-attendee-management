@@ -1090,7 +1090,7 @@ const seedData = [
     "transactionNoTransfereeName": "06700284KF434415R",
     "emailOrPhoneNo": "491781884007",
     "transactionMode": "Paypal",
-    "amount": 0,
+    "amount": 3,
     "code": "HB 084",
     "isPresent": false,
     "isOnSpotRegistration": false

@@ -52,6 +52,16 @@ Then run `npm run db:push` and optionally `npm run db:seed`. Docker sets this au
 
 `Dockerfile` uses a two-stage build (builder → runner). The `docker-entrypoint.sh` runs on every container start: `prisma db push` (also regenerates client) then `prisma db seed` (no-op if data exists) then `npm start`. The seed runner is `tsx` (configured in the `"prisma"` key of `package.json`).
 
+## Authentication
+
+All pages are protected by a simple session-cookie check in `middleware.ts`. The login page is `/login`.
+
+- Credentials are static, stored in `src/lib/auth.ts` (`CREDENTIALS` constant).
+- On successful login, `POST /api/auth/login` sets an `httpOnly` cookie (`pb_session`) with a static token.
+- `middleware.ts` checks every request (except `/login` and `/api/auth/*`) for that cookie and redirects to `/login` if missing or invalid.
+- Logout: `POST /api/auth/logout` deletes the cookie; the client then `router.push('/login')`.
+- Session lasts 7 days. No user database — changing the password means updating `CREDENTIALS.password` in `src/lib/auth.ts`.
+
 ## Architecture
 
 This is a **Next.js 15 App Router** application — both frontend and backend live in the same repo. There are no separate server processes.
