@@ -198,8 +198,8 @@ export default function AttendeesPage() {
             {/* Row 1 — headcounts */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Total Registered',      value: data.total,                icon: Users,      color: 'bg-baisakh-red-light text-baisakh-red'     },
-                { label: 'Present Today',          value: data.totalPresent,         icon: UserCheck,  color: 'bg-baisakh-green-light text-baisakh-green'  },
+                { label: 'Total Registered Attendee',      value: data.total,                icon: Users,      color: 'bg-baisakh-red-light text-baisakh-red'     },
+                { label: 'Present Registered Attendee',          value: data.totalPresent,         icon: UserCheck,  color: 'bg-baisakh-green-light text-baisakh-green'  },
                 { label: 'Total Participants',     value: data.totalQuantity,        icon: UsersRound, color: 'bg-blue-50 text-blue-600'                   },
                 { label: 'Present Participants',   value: data.totalPresentQuantity, icon: UsersRound, color: 'bg-baisakh-green-light text-baisakh-green'  },
               ].map((s, i) => (
@@ -217,8 +217,8 @@ export default function AttendeesPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 {
-                  label: 'Total Amount Collected',
-                  sub:   'All registrations (paid)',
+                  label: 'Total Amount',
+                  sub:   'All registrations',
                   value: `€${data.totalAmount.toFixed(2)}`,
                   color: 'bg-baisakh-gold-light text-baisakh-gold',
                 },
@@ -235,8 +235,8 @@ export default function AttendeesPage() {
                   color: 'bg-gray-100 text-gray-600',
                 },
                 {
-                  label: 'On-Spot Expected Amount',
-                  sub:   `${data.totalOnspotQuantity} on-spot participants × €5`,
+                  label: 'On-Spot Registered Amount',
+                  sub:   `${data.totalOnspotQuantity} on-spot participants`,
                   value: `€${(data.totalOnspotQuantity * 5).toFixed(2)}`,
                   color: 'bg-purple-50 text-purple-600',
                 },

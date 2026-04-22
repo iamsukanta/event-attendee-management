@@ -178,8 +178,8 @@ export default function RegisterPage() {
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide">Status</p>
                     <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                      Absent
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      Present
                     </span>
                   </div>
                 </div>

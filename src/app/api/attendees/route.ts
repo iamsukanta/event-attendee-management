@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         isOnspot: Boolean(isOnspot),
         code,
         attendeeNo,
-        isPresent: false,
+        isPresent: Boolean(isOnspot),
       },
     })
 
