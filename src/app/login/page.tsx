@@ -146,6 +146,9 @@ export default function LoginPage() {
           <p className="text-center text-xs text-gray-400 mt-6">
             শুভ নববর্ষ ১৪৩৩ &nbsp;•&nbsp; উদযাপন, বার্লিন
           </p>
+          <small className="text-center text-[8px] text-gray-400 mt-1 block">
+            Developed by <a href='https://iamsukanta.com' target='_blank'>iamsukanta.com</a>
+          </small>
         </div>
       </main>
     </div>
