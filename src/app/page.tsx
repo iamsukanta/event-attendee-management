@@ -13,7 +13,7 @@ import EditModal from '@/components/EditModal'
 import Pagination from '@/components/Pagination'
 import { Attendee, SortField, SortOrder, AttendeeListResponse } from '@/types'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 const SORT_LABELS: Record<string, string> = {
   attendeeNo:          'No.',
@@ -251,7 +251,9 @@ export default function AttendeesPage() {
                 },
               ].map((s, i) => (
                 <div key={i} className={`${s.color} rounded-xl px-4 py-3 flex items-center gap-3`}>
-                  <Euro size={20} className="shrink-0" />
+                  {s.label === 'On-Spot Registrations'
+                  ? <Users size={20} className="shrink-0" />
+                  : <Euro size={20} className="shrink-0" />}
                   <div>
                     <p className="text-xs font-medium opacity-70">{s.label}</p>
                     <p className="text-xl font-bold">{s.value}</p>
