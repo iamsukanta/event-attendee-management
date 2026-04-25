@@ -54,13 +54,24 @@ Then run `npm run db:push` and optionally `npm run db:seed`. Docker sets this au
 
 ## Authentication
 
-All pages are protected by a simple session-cookie check in `middleware.ts`. The login page is `/login`.
+All routes are protected by `src/middleware.ts` (must live inside `src/` — Next.js ignores a root-level `middleware.ts` when a `src/` directory exists). The login page is `/login`.
 
-- Credentials are static, stored in `src/lib/auth.ts` (`CREDENTIALS` constant).
-- On successful login, `POST /api/auth/login` sets an `httpOnly` cookie (`pb_session`) with a static token.
-- `middleware.ts` checks every request (except `/login` and `/api/auth/*`) for that cookie and redirects to `/login` if missing or invalid.
-- Logout: `POST /api/auth/logout` deletes the cookie; the client then `router.push('/login')`.
-- Session lasts 7 days. No user database — changing the password means updating `CREDENTIALS.password` in `src/lib/auth.ts`.
+**Flow:**
+- Unauthenticated request to any route → 302 redirect to `/login`
+- Authenticated request to `/login` → 302 redirect to `/`
+- `/api/auth/*` and `/_next/*` always pass through (no auth check)
+
+**Session cookie:** name `pb_session`, value is a static token inlined in `src/middleware.ts`. Set `httpOnly`, `sameSite: lax`, `maxAge: 7 days`. `secure: true` in production only.
+
+**Credentials** are stored in `src/lib/auth.ts` (`CREDENTIALS` constant) and only used by `POST /api/auth/login`. The session token constants are **inlined directly in `src/middleware.ts`** (not imported) to avoid Edge-runtime import-resolution failures that would silently disable all protection.
+
+**Rate limiting:** login API blocks an IP after 5 failed attempts for 15 minutes (in-memory `Map`, resets on success). Returns HTTP 429.
+
+**Logout:** `POST /api/auth/logout` overwrites the cookie with `maxAge: 0` (explicit expiry, same `path: /`), then the client calls `router.replace('/login')` — `replace` prevents the back-button from returning to the protected page.
+
+**To change credentials:** update `CREDENTIALS` in `src/lib/auth.ts`. To change the session token, update the `SESSION_TOKEN` constant in both `src/lib/auth.ts` and `src/middleware.ts` (kept in sync manually).
+
+**Security headers** added by middleware to every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
 
 ## Architecture
 
@@ -71,10 +82,14 @@ This is a **Next.js 15 App Router** application — both frontend and backend li
 All pages are **client components** (`"use client"`) that fetch from the internal API using `fetch()`. There are no server components doing data fetching.
 
 ```
+Browser → /login                 (unauthenticated entry point)
+Browser → /api/auth/login        (POST — sets session cookie)
+Browser → /api/auth/logout       (POST — expires session cookie)
 Browser → /api/attendees         (GET list, POST create)
 Browser → /api/attendees/[id]    (PUT update, DELETE)
 API routes → src/lib/prisma.ts   (singleton PrismaClient)
 PrismaClient → PostgreSQL
+src/middleware.ts intercepts every request before routing
 ```
 
 ### API contract
@@ -83,8 +98,7 @@ PrismaClient → PostgreSQL
 
 - `search` matches against `participantsName`, `transactionNoTransfereeName`, `emailOrPhoneNo`, and `code` (case-insensitive)
 - `sortBy` accepts: `attendeeNo`, `participantsName`, `emailOrPhoneNo`, `code`, `amount`, `transactionMode`, `adultParticipants`, `under15Participants`, `isPresent`, `createdAt`
-- Response includes these whole-DB aggregates (ignore pagination/search): `totalPresent`, `totalUnder15Participants`, `totalAdultParticipants`, `totalPresentParticipants`, `totalOnSpotCount`, `totalOnSpotParticipants`, `totalAmount`, `totalPresentAmount`
-- On-Spot Expected Amount is computed client-side as `totalOnSpotParticipants × 5` (€5 per on-spot participant)
+- Response includes these whole-DB aggregates (ignore pagination/search): `totalPresent`, `totalUnder15Participants`, `totalAdultParticipants`, `totalPresentParticipants`, `totalOnSpotCount`, `totalOnSpotParticipants`, `totalOnSpotAmount`, `totalAmount`, `totalPresentAmount`
 
 `POST /api/attendees` accepts `{ participantsName, emailOrPhoneNo, under15Participants, adultParticipants, transactionNoTransfereeName, transactionMode, amount, isOnSpotRegistration }`. **Auto-generates** `code` (unique random 4-digit string), `attendeeNo` (max existing + 1), and `registrationDate` (formatted as `DD/MM/YY HH:MM`) server-side — never pass these from the client on create. When `isOnSpotRegistration` is `true`, `isPresent` is automatically set to `true`.
 
@@ -134,11 +148,12 @@ Reusable utility classes `btn-primary`, `btn-secondary`, and `input-field` are d
 
 ### UI behaviour notes
 
-- **Pages**: `/` (attendees list) and `/register` (on-spot registration form). Navigation tabs link between them.
+- **Pages**: `/login` (public, entry point), `/` (attendees list, protected), `/register` (on-spot registration, protected). Navigation tabs link between `/` and `/register`.
 - **Delete button** is hidden by default (`opacity-0`) and revealed on row hover (`group-hover:opacity-100`). The `<tr>` carries the `group` class.
 - **isPresent toggle** is an inline switch in the table row — clicking it fires a `PUT /api/attendees/[id]` with only `{ isPresent }` and updates local state without a full refetch. A subsequent `fetchData()` refreshes aggregate stats.
 - **On-spot rows** are visually marked with a purple left border (`border-l-2 border-purple-300`).
-- **Stats boxes** — two rows. Row 1 (headcounts): Total Registrations, Total Present, Total Adult Participants, Total Under 15 Participants. Row 2 (amounts/on-spot): Total Amount Collected, Present Attendee Amount, On-Spot Registrations (count + participant sub-label), On-Spot Expected Amount (`totalOnSpotParticipants × €5`). All values come from whole-DB aggregates in the API response, not the current page.
+- **Stats boxes** — two rows. Row 1 (headcounts): Total Registrations, Total Present, Total Adult Participants, Total Under 15 Participants. Row 2 (amounts/on-spot): Total Amount Collected, Present Attendee Amount, On-Spot Registrations (count + participant sub-label), On-Spot Amount (`totalOnSpotAmount` — actual collected from on-spot registrations). All values come from whole-DB aggregates in the API response, not the current page.
+- **Sign out button** is in the top-right of the header on both `/` and `/register`. Calls `POST /api/auth/logout` then `router.replace('/login')`.
 - **Edit modal** shows `attendeeNo` in the header (read-only). Editable fields: `participantsName`, `emailOrPhoneNo`, `transactionNoTransfereeName`, `transactionMode`, `amount`, `adultParticipants`, `under15Participants`, `code`, `registrationDate`, `isPresent` toggle, `isOnSpotRegistration` toggle.
 - **On-spot registration form** (`/register`) posts `isOnSpotRegistration: true`; the server auto-sets `isPresent: true` and generates `registrationDate`. Transaction mode is selected via styled button grid using `ON_SPOT_TRANSACTION_MODES`.
 - **Currency** is euros (€) throughout — amount inputs, display cells, and the edit modal.
